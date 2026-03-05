@@ -245,11 +245,12 @@ class ConsoleChannel(BaseChannel):
 
         # Log stream completion status regardless of success/failure
         if stream_error:
+            has_response = bool(last_response)
             logger.warning(
                 "console stream incomplete: event_count=%s has_response=%s "
                 "error=%s",
                 event_count,
-                last_response is not None,
+                has_response,
                 type(stream_error).__name__,
             )
             # Inform user of interruption
@@ -258,10 +259,11 @@ class ConsoleChannel(BaseChannel):
                 "Some content may be missing.",
             )
         else:
+            has_response = bool(last_response)
             logger.info(
                 "console stream done: event_count=%s has_response=%s",
                 event_count,
-                last_response is not None,
+                has_response,
             )
 
         # Process any error from the response (even if stream was partial)
