@@ -30,13 +30,15 @@ def _raw_mcp_hash(config_path: Path) -> int:
     """Hash of raw MCP section from on-disk config.json.
 
     Reads the JSON file directly (like the loader) and hashes the 'mcp'
-    key portion, avoiding dependency on model instantiation.
+    key portion with stable canonical JSON, avoiding dependency on
+    model instantiation and ensuring consistent hashing across runs.
 
     Args:
         config_path: Path to config.json file.
 
     Returns:
-        Hash of the raw MCP dict, or hash('None') if not present or on error.
+        Hash of the canonical MCP JSON, or hash('None') if not present
+        or on error.
     """
     try:
         with open(config_path, "r", encoding="utf-8") as file:
@@ -44,8 +46,10 @@ def _raw_mcp_hash(config_path: Path) -> int:
         mcp = data.get("mcp")
         if mcp is None:
             return hash("None")
-        return hash(str(mcp))
-    except Exception:
+        # Canonical JSON for stable hashing (sorted keys, compact separators)
+        canonical = json.dumps(mcp, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
+        return hash(canonical)
+    except (FileNotFoundError, json.JSONDecodeError, PermissionError, OSError):
         return hash("None")
 
 
