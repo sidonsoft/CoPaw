@@ -240,7 +240,7 @@ class ConsoleChannel(BaseChannel):
                 "console event stream interrupted after %s events: %s",
                 event_count,
                 e,
-                exc_info=True if logger.isEnabledFor(logging.DEBUG) else False,
+                exc_info=logger.isEnabledFor(logging.DEBUG),
             )
 
         # Log stream completion status regardless of success/failure
