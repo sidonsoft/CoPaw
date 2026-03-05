@@ -281,10 +281,11 @@ class ConsoleChannel(BaseChannel):
                     to_handle,
                     request.session_id or f"{self.channel}:{to_handle}",
                 )
-        except Exception as e:
+        except Exception:
             logger.exception("console on_reply_sent callback failed")
-            err_msg = str(e).strip() or "An error occurred while processing."
-            self._print_error(err_msg)
+            self._print_error(
+                "An error occurred while processing the reply."
+            )
 
     # ── pretty-print helpers ────────────────────────────────────────
 
