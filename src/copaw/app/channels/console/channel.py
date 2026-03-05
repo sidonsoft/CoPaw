@@ -255,7 +255,7 @@ class ConsoleChannel(BaseChannel):
             # Inform user of interruption
             self._print_error(
                 f"Response stream interrupted after {event_count} events. "
-                "Some content may be missing."
+                "Some content may be missing.",
             )
         else:
             logger.info(
