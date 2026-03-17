@@ -165,14 +165,27 @@ def _create_file_block_support_formatter(
                     m for m in messages if m.get("role") == "assistant"
                 ]
                 if len(in_assistant) != len(out_assistant):
-                    logger.warning(
+                    # Messages were merged by formatter (e.g., consecutive
+                    # tool_use blocks merged into one assistant message).
+                    # Accumulate all reasoning content and attach to last
+                    # assistant message in output.
+                    logger.debug(
                         "Assistant message count mismatch after formatting "
-                        "(%d before, %d after). "
-                        "Skipping reasoning_content injection.",
+                        "(%d before, %d after). Accumulating reasoning_content.",
                         len(in_assistant),
                         len(out_assistant),
                     )
+                    all_reasoning = []
+                    for in_msg in in_assistant:
+                        reasoning = reasoning_contents.get(id(in_msg))
+                        if reasoning:
+                            all_reasoning.append(reasoning)
+                    if all_reasoning and out_assistant:
+                        out_assistant[-1]["reasoning_content"] = "\n\n".join(
+                            all_reasoning
+                        )
                 else:
+                    # Normal case: one-to-one mapping
                     for in_msg, out_msg in zip(
                         in_assistant,
                         out_assistant,
