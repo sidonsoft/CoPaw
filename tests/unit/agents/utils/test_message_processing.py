@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=protected-access
 """Tests for message processing media compatibility."""
-from pathlib import Path
 
 import pytest
 
@@ -22,7 +22,12 @@ async def test_process_audio_block_with_data_field_uses_local_file(
 
     observed = {}
 
-    async def fake_process_audio_block(message_content, index, local_path, block):
+    async def fake_process_audio_block(
+        message_content,
+        index,
+        local_path,
+        block,
+    ):
         observed["local_path"] = local_path
         observed["block"] = dict(block)
         message_content[index] = {
@@ -38,7 +43,7 @@ async def test_process_audio_block_with_data_field_uses_local_file(
             "type": "audio",
             "data": audio_file.resolve().as_uri(),
             "format": "ogg",
-        }
+        },
     ]
 
     local_path = await mp._process_single_block(
@@ -77,13 +82,21 @@ async def test_process_audio_block_with_base64_file_uri_is_normalized(
     monkeypatch,
     tmp_path,
 ):
-    """Some audio blocks arrive as base64-with-file-uri and should be normalized."""
+    """Some audio blocks arrive as base64-with-file-uri.
+
+    They should be normalized before the base64 path runs.
+    """
     audio_file = tmp_path / "voice.oga"
     audio_file.write_bytes(b"OggSdummy")
 
     observed = {}
 
-    async def fake_process_audio_block(message_content, index, local_path, block):
+    async def fake_process_audio_block(
+        message_content,
+        index,
+        local_path,
+        block,
+    ):
         observed["local_path"] = local_path
         observed["block"] = dict(block)
         message_content[index] = {
@@ -102,7 +115,7 @@ async def test_process_audio_block_with_base64_file_uri_is_normalized(
                 "media_type": "audio/None",
                 "data": audio_file.resolve().as_uri(),
             },
-        }
+        },
     ]
 
     local_path = await mp._process_single_block(
@@ -116,4 +129,6 @@ async def test_process_audio_block_with_base64_file_uri_is_normalized(
     assert observed["block"]["source"]["type"] == "url"
     assert observed["block"]["source"]["url"] == audio_file.resolve().as_uri()
     assert observed["block"]["source"]["media_type"] == "audio/ogg"
-    assert message_content[0]["text"] == "[Voice message]: normalized transcript"
+    assert (
+        message_content[0]["text"] == "[Voice message]: normalized transcript"
+    )

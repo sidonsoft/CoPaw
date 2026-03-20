@@ -91,9 +91,7 @@ def _extract_source_and_filename(block: dict, block_type: str):
         if isinstance(data, str) and data:
             parsed = urllib.parse.urlparse(data)
             filename = (
-                os.path.basename(parsed.path)
-                or os.path.basename(data)
-                or None
+                os.path.basename(parsed.path) or os.path.basename(data) or None
             )
             return {"type": "url", "url": data}, filename
 
@@ -109,6 +107,44 @@ def _extract_source_and_filename(block: dict, block_type: str):
             filename = os.path.basename(parsed.path) or None
 
     return source, filename
+
+
+def _normalize_audio_source_for_local_file(
+    block_type: str,
+    block: dict,
+    source: dict,
+):
+    """Normalize audio blocks whose payload is a local path or file URI."""
+    if block_type != "audio" or not isinstance(source, dict):
+        return source
+
+    if source.get("type") != "base64":
+        return source
+
+    data = source.get("data")
+    if not isinstance(data, str) or not data:
+        return source
+
+    local_path = None
+    if os.path.isfile(data):
+        local_path = data
+    else:
+        parsed = urllib.parse.urlparse(data)
+        if parsed.scheme == "file":
+            candidate = urllib.parse.unquote(parsed.path)
+            if os.path.isfile(candidate):
+                local_path = candidate
+
+    if not local_path:
+        return source
+
+    normalized = {
+        "type": "url",
+        "url": Path(local_path).as_uri(),
+        "media_type": _media_type_from_path(local_path),
+    }
+    block["source"] = normalized
+    return normalized
 
 
 def _media_type_from_path(path: str) -> str:
@@ -309,6 +345,7 @@ async def _process_audio_block(
     return False
 
 
+# pylint: disable=too-many-branches
 async def _process_single_block(
     message_content: list,
     index: int,
