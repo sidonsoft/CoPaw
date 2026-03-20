@@ -120,6 +120,7 @@ def _media_type_from_path(path: str) -> str:
         ".mp3": "audio/mp3",
         ".opus": "audio/opus",
         ".ogg": "audio/ogg",
+        ".oga": "audio/ogg",
         ".flac": "audio/flac",
         ".m4a": "audio/mp4",
         ".aac": "audio/aac",
@@ -328,19 +329,30 @@ async def _process_single_block(
     if source is None:
         return None
 
-    # Normalize: when source is "base64" but data is a local path (e.g.
-    # DingTalk voice returns path), treat as url only if under allowed dir.
+    # Normalize: when source is "base64" but data is really a local file
+    # path or file:// URI (for example some voice-message paths), treat it
+    # as a URL source instead of trying to base64-decode it.
     if (
         block_type == "audio"
         and isinstance(source, dict)
         and source.get("type") == "base64"
     ):
         data = source.get("data")
-        if isinstance(data, str) and os.path.isfile(data):
+        local_path = None
+        if isinstance(data, str) and data:
+            if os.path.isfile(data):
+                local_path = data
+            else:
+                parsed = urllib.parse.urlparse(data)
+                if parsed.scheme == "file":
+                    candidate = urllib.parse.unquote(parsed.path)
+                    if os.path.isfile(candidate):
+                        local_path = candidate
+        if local_path:
             block["source"] = {
                 "type": "url",
-                "url": Path(data).as_uri(),
-                "media_type": _media_type_from_path(data),
+                "url": Path(local_path).as_uri(),
+                "media_type": _media_type_from_path(local_path),
             }
             source = block["source"]
 
@@ -412,6 +424,10 @@ async def process_file_and_media_blocks_in_message(msg) -> None:
         downloaded_files = []
 
         for i, block in enumerate(message.content):
+            # Convert Pydantic model objects (e.g., AudioContent, ImageContent
+            # from agentscope_runtime) to dicts for uniform processing.
+            if hasattr(block, "model_dump"):
+                block = block.model_dump()
             if not isinstance(block, dict):
                 continue
 
