@@ -93,7 +93,23 @@ def _extract_source_and_filename(block: dict, block_type: str):
             filename = (
                 os.path.basename(parsed.path) or os.path.basename(data) or None
             )
-            return {"type": "url", "url": data}, filename
+            # Normalize bare local paths to file:// URLs
+            if parsed.scheme and parsed.netloc:
+                # Full URL (https://, http://, etc.)
+                return {"type": "url", "url": data}, filename
+            elif parsed.scheme == "file":
+                # Already a file:// URL
+                return {"type": "url", "url": data}, filename
+            elif os.path.isfile(data):
+                # Bare local path → convert to file:// URL
+                return {
+                    "type": "url",
+                    "url": Path(data).as_uri(),
+                    "media_type": _media_type_from_path(data),
+                }, filename
+            else:
+                # Unknown - pass through as-is (may be base64 or invalid)
+                return {"type": "url", "url": data}, filename
 
     source = block.get("source", {})
     if not isinstance(source, dict):
